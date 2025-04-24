@@ -1,0 +1,407 @@
+\documentclass[10pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsthm, amsmath, amsfonts, amssymb}
+\usepackage{graphicx}
+\usepackage{authblk}
+\usepackage{tikz}
+\usepackage{listings}
+\usepackage[]{url}
+\usepackage{xcolor}
+\usepackage[]{float}
+\usepackage{tikz}
+\usepackage{tikz}
+\usepackage{ifthen}
+\usetikzlibrary{arrows.meta, calc}
+
+\definecolor{codegray}{gray}{0.97}
+\definecolor{codeblue}{rgb}{0.1,0.1,0.6}
+\definecolor{codegreen}{rgb}{0.0,0.5,0.0}
+\definecolor{codepurple}{rgb}{0.5,0.0,0.5}
+\definecolor{codered}{rgb}{0.6,0.1,0.1}
+\definecolor{codeorange}{rgb}{0.8,0.3,0.0}
+
+\lstset{
+	backgroundcolor=\color{codegray},   
+	basicstyle=\ttfamily\footnotesize,
+	keywordstyle=\color{codeblue}\bfseries,
+	stringstyle=\color{codegreen},
+	commentstyle=\color{codepurple}\itshape,
+	numberstyle=\tiny\color{gray},
+	identifierstyle=\color{black},
+	morekeywords={self},  % Add more custom keywords if needed
+	breaklines=true,
+	frame=single,
+	numbers=left,
+	numbersep=8pt,
+	tabsize=4,
+	showstringspaces=false,
+	captionpos=b,
+	language=Python,
+	xleftmargin=1.5em,
+	framexleftmargin=1.5em
+}
+
+
+
+\DeclareMathOperator{\constantterm}{ct}
+\newcommand{\ct}[1]{\constantterm\left[#1\right]}
+\newcommand{\N}[0]{\mathbb{N}}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{conjecture}[theorem]{Conjecture}
+\newtheorem{proposition}[theorem]{Proposition}
+
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+
+
+
+\title{Automata Theoretic Bounds on Constant Term Sequences Modulo Primes}
+\author{Justin Offutt\thanks{Undergraduate student researcher. This work was conducted as part of the LEMMA research group at Indiana University.}} 
+\affil{Department of Mathematics, Indiana University\\Bloomington, IN, USA\\jcoffutt@iu.edu}
+\date{\today}
+
+\begin{document}
+	
+	\maketitle
+	
+	\begin{abstract}
+	This paper refutes a previously conjectured upper bound on the first index \( n_0 \) at which a zero appears in constant term sequences of the form \( A_p(n) := \operatorname{ct}(P^n) \bmod p \), where \( P(t) \in \mathbb{Z}[t, t^{-1}] \), and \( A_p(n) \) denotes the infinite constant term sequence \( (A_p(n))_{n \geq 0} \). The conjecture posited that the first zero must occur at some index \( n_0 < p^{\deg(P)} \) for univariate polynomials, stemming from the previously proven general result \( B_{P,p} = p^{p^{(2\deg(P)-1)^r}} \), which holds for \emph{all} Laurent polynomials in \( r \) variables. We prove a more nuanced and computable upper bound for univariate polynomials \( n_0 < p^{\kappa(P, p)} \), where \( \kappa(P, p)\) is the size of the state set of a finite automaton that computes \( (A_p(n))_{n \geq 0} \) over \( \mathbb{F}_p \).  We support our theoretical results with randomized experiments using Nadav Kohen’s computational library on low-degree Laurent polynomials, demonstrating the validity of the bound and improvement over the theoretical worst-case bound.
+
+	\end{abstract}
+	
+	\section{Introduction}
+	Constant term sequences of powers of Laurent polynomials exhibit intriguing algebraic and modular behavior. These sequences can often encode enumerative information (e.g combinatorial) and trace underlying algebraic structures making them valuable tools in both applied and pure mathematics. These sequences arise naturally in analytic combinatorics and number theory, and their behavior modulo primes has been the subject of recent study \cite{kohen}. Classical results such as Christol’s theorem \cite{christol} and the work of Dwork \cite{dwork} provide insight into the relationships between algebraic functions and their mod $p$ reductions, suggesting that constant term sequences may contain $p$-adic and automata theoretic structure. In this paper, we consider Laurent polynomials \( P(t) \in \mathbb{Z}[t, t^{-1}] \) with integer coefficients. For a fixed prime \( p \), we define the constant term sequence \( A_p(n) = \ct{P^n} \mod p \), where the constant term is computed over the integers and then reduced modulo \( p \). This formulation allows us to investigate how the reductions of these sequences behave across different primes.
+	
+	
+	The following experimental analysis on these sequences leverages a Sage library developed by Nadav Kohen: a collection of functions facilitating the manipulation and computation of constant term sequences. The source code for Kohen's library is publicly available at the following repository: \texttt{\url{https://github.com/nkohen/ConstantTermSequences}}. Additionally, the implementation developed specifically for the experiments in this paper, is available at:
+	\texttt{\url{https://github.com/jcbopit/CTSExperiments/}}. We will now go into some elementary background and a brief motivating example.
+	
+	\section{Background and Definitions}
+	
+	\begin{definition}
+		Let \( P(x), Q(x) \) be multivariate Laurent polynomials in variables \( x = (x_1, x_2, \dots, x_m) \). The \emph{constant term sequence} \( A(n) \) is the sequence indexed by \( n \in \mathbb{N} \), defined by
+		\[
+		A(n) := \text{ct}\left[P(x)^n Q(x)\right],
+		\]
+		where \( \text{ct}[\cdot] \) denotes the \emph{constant term} operator which extracts the coefficient of the monomial \( x_1^0 x_2^0 \cdots x_m^0 \) in the expansion. This defines an infinite sequence
+		\[
+		(A(n))_{n \geq 0} = A(0), A(1), A(2), \dots.
+		\]
+	\end{definition}
+	
+	\subsection{Motivating Example}
+	
+	A classical example of a constant term sequence arises from the Laurent polynomial \( P(x, y) = x^{-1} + x + y^{-1} + y \). The infinite sequence \( (A(n))_{n \geq 0} \) defined by:
+	\[
+	A(n) = \text{ct}\left[(x^{-1} + x + y^{-1} + y)^n\right] = 1,\;0,\;4,\;0,\;36,\;0,\;400,\;0,\;4900,\; \dots
+	\]
+	counts the number of 2D lattice paths of length \( n \), composing of steps in the four cardinal directions: left (\( L = x^{-1} \)), right (\( R = x \)), down (\( D = y^{-1} \)), and up (\( U = y \)), that begin and end at the origin. This is only possible when the number of L, R, U, and D steps are equal which explains why the constant term, or number of ways to leave and return to the origin, is zero for odd indices and nonzero for even indices.
+	
+	For example, suppose we want to know how many paths we can take that leave and return to the origin of length \( n = 6 \)?
+	
+	\begin{align*}
+		A(n) &= \text{ct}\left[(x^{-1} + x + y^{-1} + y)^n\right] = 1,\;0,\;4,\;0,36,\;0,\;\textbf{400},\; \dots \\
+		A(4) &= \textbf{400}
+	\end{align*}
+	
+	The $6$-th index of the constant term sequence $A(n)$ encodes that there are \emph{400} ways to leave the origin and return to it using 6 steps in the cardinal directions!
+	
+	Below is a diagram of a few such lattice paths of length \( n = 6 \).
+
+\begin{center}
+	\begin{tikzpicture}[scale=1, line width=1.5pt, >=Stealth]
+		
+
+		\draw[step=1cm, gray!30, thin] (-3.5,-3.5) grid (3.5,3.5);
+
+		\draw[->, thick] (-3.6,0) -- (3.8,0) node[right] {\footnotesize \(x\)};
+		\draw[->, thick] (0,-3.6) -- (0,3.8) node[above] {\footnotesize \(y\)};
+		
+
+		\node[circle,fill=black,inner sep=2pt] at (0,0) {};
+		\node[below right] at (0,0) {\footnotesize (0,0)};
+		
+		\draw[->, red, shorten >=2pt, shorten <=2pt]
+		(0,0) -- (1,0) -- (1,1) -- (2,1) -- (2,0) -- (1,0) -- (0,0);
+		\draw[->, blue, shorten >=2pt, shorten <=2pt]
+		(0,0) -- (0,1) -- (0,2) -- (-1,2) -- (-1,1) -- (-1,0) -- (0,0);
+		\draw[->, green, shorten >=2pt, shorten <=2pt]
+		(0,0) -- (0,-1) -- (-1,-1) -- (-1,-2) -- (0,-2) -- (0,-1) -- (0,0);
+		
+	
+		% Legend box
+		\begin{scope}[shift={(4.5,2.5)}]
+			\draw[gray!50, rounded corners] (-0.3,-2) rectangle (4.35,0.5);
+			\node[anchor=west, red]   at (0, 0) {\rule{10pt}{1.5pt} \quad R, U, R, D, L, L};
+			\node[anchor=west, blue]  at (0, -0.6) {\rule{10pt}{1.5pt} \quad U, U, L, D, D, R};
+			\node[anchor=west, green] at (0, -1.4) {\rule{10pt}{1.5pt} \quad D, L, D, R, U, U};
+			\node at (1.75, 0.75) {\footnotesize \textbf{Path Legend}};
+		\end{scope}
+		
+	\end{tikzpicture}
+\end{center}
+
+\subsection{Automata and Base-\( p \) Representation of Constant Term Sequences}
+
+By Christol's theorem \cite{christol}, any sequence \( a(n) \) over \( \mathbb{F}_p \) whose generating function is algebraic over \( \mathbb{F}_p(x) \) is \( p \)-automatic. That is, there exists a finite automaton that computes \( a(n) \) from the base-\( p \) digits of \( n \). Since constant term sequences of the form
+\[
+A_p(n) = \text{ct}[P^n] \mod p
+\]
+have algebraic generating functions, they are \( p \)-automatic and can therefore be computed by a finite automaton.
+
+\medskip
+
+A finite automaton that computes a sequence \( a(n) \in \mathbb{F}_p \) reads the base-\( p \) expansion of \( n \) from most to least significant digit. It transitions between a finite number of states depending on the current digit being read. After processing the entire digit string, it outputs the value \( a(n) \in \mathbb{F}_p \).
+
+\medskip
+
+To illustrate this idea concretely, we present an automaton over \( \mathbb{F}_2 \) that computes a 2-automatic sequence \( a(n) \) with output:
+\[
+a(n) = 1,\,0,\,0,\,1,\,0,\;\dots
+\]
+
+\usetikzlibrary{automata, positioning}
+
+\begin{figure}[H]
+	\centering
+	\begin{tikzpicture}[shorten >=1pt, node distance=3.2cm, on grid, auto, 
+		every state/.style={draw, circle, minimum size=1.2cm, font=\normalsize}]
+		
+		% Nodes
+		\node[state, initial, accepting, label=above:{Outputs 1}] (q0) {$q_0$};
+		\node[state, label=above:{Outputs 1}] (q1) [right of=q0] {$q_1$};
+		\node[state, label=below:{Outputs 0}] (q2) [below of=q0] {$q_2$};
+		\node[state, label=right:{Outputs 0}] (q3) [right of=q2] {$q_3$};
+		
+		% Transitions
+		\path[->]
+		(q0) edge[bend left=20] node {0} (q1)
+		edge[bend left=20] node {1} (q2)
+		(q1) edge[bend left=20] node {0} (q0)
+		edge[bend left=20] node {1} (q3)
+		(q2) edge[bend left=20] node {0} (q3)
+		edge[bend left=20] node {1} (q0)
+		(q3) edge[loop below] node {0,1} ();
+	\end{tikzpicture}
+	\caption{Finite automaton computing a 2-automatic sequence \( a(n) \in \mathbb{F}_2 \). The input is the base-2 digits of \( n \), read from most to least significant.}
+	\label{fig:base2fsm}
+\end{figure}
+
+\medskip
+
+The following are a few examples that demonstrate how this automaton computes \( a(n) \in \mathbb{F}_2 \) by processing the base-2 representation of \( n \).
+
+\begin{itemize}
+	\item \textbf{Example 1: \( n = 0 \Rightarrow \text{binary: } \texttt{0} \)}\\
+	Start in \( q_0 \) → read \texttt{0} → go to \( q_1 \) → output: \textbf{1}
+	
+	\item \textbf{Example 2: \( n = 1 \Rightarrow \text{binary: } \texttt{1} \)}\\
+	Start in \( q_0 \) → read \texttt{1} → go to \( q_2 \) → output: \textbf{0}
+	
+	\item \textbf{Example 3: \( n = 2 \Rightarrow \text{binary: } \texttt{10} \)}\\
+	Start in \( q_0 \) → read \texttt{1} → go to \( q_2 \) → read \texttt{0} → go to \( q_3 \) → output: \textbf{0}
+	
+	\item \textbf{Example 4: \( n = 3 \Rightarrow \text{binary: } \texttt{11} \)}\\
+	Start in \( q_0 \) → read \texttt{1} → go to \( q_2 \) → read \texttt{1} → go to \( q_0 \) → output: \textbf{1}
+	
+	\item \textbf{Example 5: \( n = 4 \Rightarrow \text{binary: } \texttt{100} \)}\\
+	Start in \( q_0 \) → read \texttt{1} → go to \( q_2 \) → read \texttt{0} → go to \( q_3 \) → read \texttt{0} → loop in \( q_3 \) → output: \textbf{0}
+\end{itemize}
+
+	Christol's theorem guarantees that such an automaton exists for every possible sequence $A_p(n)$ we may take interest in, although it says nothing of how complex or difficult to find the automaton may be.
+
+	
+
+	\subsection{Theorem and Conjecture on the First Zero of $A_p(n)$}
+		The following theorem and respective proof extracted from Kohen \cite{kohen} states an upper bound on the position of the first zero in the sequence, or alternatively, at which index $n_0$ the sequence $A_p(n)$ takes on the value $0 \in \mathbb{F}_p$.
+	\begin{proposition} \label{check_bound}
+		Let $P$ be any Laurent polynomial and $p$ be prime. There is a $B_{P,p}\in\N$, depending on $p$ and $\deg(P)$, so that if there exists some $n\in\N$ such that $p\mid \ct{P^n}$, then there exists an $n_0\in\N$ with $n_0<B_{P,p}$ such that $p\mid \ct{P^{n_0}}$.
+	\end{proposition}
+	
+	\begin{proof}
+		The Rowland-Zeilberger automaton for $\ct{P^n}\bmod p$ contains at most $p^{\vert T\vert} = p^{(2m+1)^r} = p^{(2\cdot\deg(P)-1)^r}$ states. If one of the states has output $0$, then there must be a path to it from the starting state of length less than the number of states. Thus, if we let $B_{P,p} = p^{p^{(2\cdot\deg(P)-1)^r}}$, then there must be a $0$ in our sequence for some $n_0<B_{P,p}$.
+	\end{proof}
+	
+	However, this bound of $p^{p^{(2\cdot\deg(P)-1)^r}}$ is the theoretical worst case. In the author's \cite{kohen} brief computer experimentation in one variable, no sequence or prime was found violating the following suggested bound:
+	
+	\begin{conjecture}\label{conj}
+		Proposition \ref{check_bound} holds for $B_{P,p} = p^{\deg(P)}$ when $P$ is univariate.
+	\end{conjecture}
+	
+	\ref{conj} leads to the focus of the following section where we attempt to computationally discover a polynomial $P$ which takes on a $0$ at an $n_0 > p^{deg P} = B_{P,p}$.
+	
+	* It is noteworthy to mention that the above proof assumes $\exists  n\in\mathbb{N} \; \text{such that} \; p \mid \text{ct} \left[P^n\right] = 0$ as a premise to begin with. Experimentally it appears that most of the constant term sequences we are concerned with do have such an $n_0$ leading to $A_p(n_0) = 0 $, but the current literature does not provide a way to determine the existence of this $n_0$, which could be an exciting area of exploration. \\
+
+
+	\section{Experimental Methodology}
+	
+	The overarching goal of the following experiment is to explore the behavior of constant term sequences modulo primes and the locations of their first zeroes. Rather than exhaustively analyzing infinitely many polynomials and their associated constant term sequences $A_p(n)$ (which unfortunately is currently computationally impossible), we implement a simple randomized search approach that can be repeated with various parameters and prime ranges. Doing this reduces the search space to a manageable subset of polynomials and makes the experiment feasible.
+	
+	To begin, we construct a function to generate Laurent polynomials of a specified degree with randomly sampled coefficients. 
+	
+	
+	\begin{lstlisting}[language=Python, caption=Random Laurent Polynomial Generator]
+		def generate_laurent_polynomial(prime, degree):
+		R.<t> = LaurentPolynomialRing(GF(prime), 1)
+		coefficients = [random.randint(1, prime - 1) for _ in range(2 * degree + 1)]
+		exponents = list(range(-degree, degree + 1))
+		return sum(c * t^e for c, e in zip(coefficients, exponents))
+	\end{lstlisting}
+	
+	
+	
+	 Each polynomial was randomly generated in the Laurent polynomial ring \( \mathbb{F}_p[t, t^{-1}] \) for a fixed prime \( p \). Coefficients \( a_i \in \mathbb{F}_p^\times \) (i.e., nonzero elements of the field) were selected uniformly at random from the set \( \{1, 2, \dots, p-1\} \). Each generated polynomial had the form
+	 \[
+	 P(t) = \sum_{i = -d}^{d} a_i t^i,
+	 \]
+	 where \( d \) is a fixed degree bound, and all \( 2d + 1 \) coefficients \( a_i \) are nonzero, ensuring the polynomial is dense across the full range of degrees. \\
+	 
+	 
+	Using this newly created function, a simple program is developed to do preliminary experiments and investigate trends: for every polynomial, we use Kohen’s \texttt{LinRep} module to compute the first index \( n_0 \) where the constant term sequence $A_p(n)$ takes on a $0 \in \mathbb{F}_p$ across a range primes \( p \). If such an index exists, it is referred to as the \textit{shortest zero} and stored in a list of indices. If a zero never occurs in the sequence (the associated automaton does have a zero outputting state), the associated prime $p$ that the sequence is being modded by is stored in a list. A plot for each polynomial constant term sequence's polynomial $P(t)^n$ is created plotting the shortest zero against each modulo $p$ with a blue marker, and each occurrence where a zero doesn't exist, a red star. Plots of the shortest zeros across primes were generated to visually inspect trends, and observations were noted. Initially, the plots appeared random and unstructured. Over time, however, it was observed that some polynomials exhibited patterns where shortest-zero values increased roughly linearly or quadratically with \( p \). Yet, even these patterns were inconsistent across different polynomials, making any broad generalizations difficult without further structure.
+	
+	The following is a quilt of the plots of 25 randomly generated Laurent polynomials up to degree 4:
+	
+	
+	\vspace*{-1em}
+	\begin{figure}[H]
+		\centering
+		\includegraphics[width=\textwidth]{quilt.png}
+		\caption{\small{Shortest zero values across primes for various randomly generated Laurent polynomials. Each subplot represents a different polynomial, with prime numbers on the x-axis and the first zero index on the y-axis.}}
+		\label{fig:quilt}
+	\end{figure}
+	
+	
+	
+	During extensive experimentation, it was observed that degree two univariate Laurent polynomials \emph{sometimes} exhibited erratic first zero behaviors. This proved to be an excellent search space for counter examples to \ref{2.3}, as their potentially bound-breaking behaviors were observed at small primes, making it computationally cheap and fast to compute across a wide range of polynomials.
+	
+	The following logic was implemented in order to experiment upon the aforementioned search space: \\\\\\\\
+	
+	\begin{lstlisting}[language=Python, caption=Main Loop Logic]
+		for x in range(num_polynomials):
+		primes_list = list(primerange(2, max_prime_mod))
+		prime = random.choice(primes_list)
+		poly, degree = generate_laurent_polynomial(prime, degree)
+		
+		shortest_zeros = []
+		none_primes = []
+		valid_primes = []
+		violations = []
+		violation_primes = []
+		
+		for p in primes_list:
+		try:
+		R.<t> = LaurentPolynomialRing(GF(p), 1)
+		P = R(poly)
+		Q = R(1)
+		sz = LinRep.compute_shortest_zero(P, Q, p, 50000)
+		
+		if sz is not None:
+		if sz > (p ** degree):
+		violations.append(sz)
+		violation_primes.append(p)
+		else:
+		valid_primes.append(p)
+		shortest_zeros.append(sz)
+		else:
+		none_primes.append(p)
+		
+		except Exception as e:
+		print(f"Error for prime {p}: {e}")
+	\end{lstlisting}
+	
+	
+	In order to search for examples that break $B_{P,p} = p^{\deg(P)}$, the main loop takes a polynomial $P(t)^n$'s constant term sequence $A_p(n)$ and computes its shortest zero \texttt{sz} for each prime $p$ up to a user-defined bound (e.g computes the shortest zero for some constant term sequence $A_p(n)$ for $0 \leq p \leq 9$). In each computation, the main loop checks if $A_p(n_0) = 0$ when $n_0 > p^{\deg P}$ . If it is, it is considered a \texttt{violation}, otherwise, it is considered a \texttt{valid\_prime}. Doing this for every polynomial generated leads to plots containing each associated $P(t)^n$'s first zero, non-first zeros, and violating first zeros as we vary $p$.
+	
+	Ultimately, we now have the tools to mass generate second degree univariate Laurent polynomials and test whether the first zeros violate the bound in \ref{conj}. With this, the following section presents the experimental results.
+	
+	\section{Results}
+	
+	In this section, we present an explicit counterexample to \ref{conj}, which posits that for any univariate Laurent polynomial \( P \in \mathbb{F}_p[t, t^{-1}] \) of degree \( d \), the first zero of the constant term sequence \( A_p(n) = \ct{P^n} \bmod p \) occurs at some \( n_0 < B_{P,p} = p^{\deg(P)} \).
+	
+	To find such an example, we utilized the program logic outlined in section 3 to conduct a randomized search over degree-2 Laurent polynomials until we found a violating polynomial.
+	
+	\subsection{An Explicit Counterexample to Conjecture~\ref{conj}}
+	
+	
+	\begin{proof}
+		Let	$P(t) = 32t^2 + 13t + 1 + 27t^{-1} + 35t^{-2} \in \mathbb{F}_7[t, t^{-1}]$
+		be a univariate Laurent polynomial of degree 2 over $\mathbb{F}_7$.
+		Computing the constant term sequence, $A_7(n) = \ct{P(t)^n} \bmod 7$
+		we find that the first zero occurs at \( n_0 = 225 \), whereas \ref{conj} predicts it must occur at some \( n_0 < 7^2 = 49 \). Since \( 225 > 49 \), this violates the bound \( B_{P,7} = p^{\deg(P)} \), and thus serves as a counterexample.
+	\end{proof}
+
+	The following is a geometric representation of the above counterexample:
+	
+	\begin{figure}[h!]
+		\centering
+		\includegraphics[width=0.5\textwidth]{counterexample.png}
+		\caption{Shortest zero values across primes for $P(t) = 32t^2 + 13t + 1 + 27^{-1} + 35t^{-2}$ with violations, non-first zeroes, and theoretical bound $B_{P,p}$ plotted.}
+		\label{fig:counterexample}
+	\end{figure}
+	
+	In case the reader wishes to reproduce these experiments, it is critical to note that the general occurrence of a violating example tends to be rare, which may imply that there are more particular conditions necessary within this subfamily of polynomials to reproduce violating examples more consistently.
+
+	\subsection{Ten Additional Counterexamples to Conjecture~\ref{conj}}
+	
+	Below are ten additional violating polynomials, each generating a constant term sequence of \( A_p(n) = \ct{P^n} \bmod p \) which violates the bound \( n < p^{\deg(P)} \).
+	
+	\begin{align*}
+		P_1(t) &= t^2 + 2t + 3 - t^{-1} +2t^{-2} \in \mathbb{F}_{11} \\
+		P_2(t) &= 8t^2 +10t + 12 + 8t^{-1} + 8t^{-2} \in \mathbb{F}_5 \\
+		P_3(t) &= t^2 + t + 1 + t^{-1} - t^{-2} \in \mathbb{F}_3 \\
+		P_4(t) &= -t^2 + 5t + 4 + 4t^{-1} + t^{-2} \in \mathbb{F}_5 \\
+		P_5(t) &= 7t^2 + 3t + 3 - t^{-1} +8t^{-2} \in \mathbb{F}_7 \\
+		P_6(t) &= t^2 + 11t + 4 + 4t^{-1} + 9t^{-2} \in \mathbb{F}_{11}\\
+		P_7(t) &= 10t^2 + 8t + 6 + 5t^{-1} + 9t^{-2} \in \mathbb{F}_5 \\
+		P_8(t) &= -t^2 - t + 1 - t^{-1} + t^{-2} \in \mathbb{F}_3 \\
+		P_9(t) &= -t^2 + t +  2 - t^{-1} + t^{-2} \in \mathbb{F}_5 \\
+		P_{10}(t) &= t^2 - t + 1 - t^{-1} - t^{-2} \in \mathbb{F}_3 \\
+	\end{align*}
+	
+	\section{Automaton-based Bound on First Zero}
+	
+	\begin{proposition}[] \label{auto_bound}
+		Let \( P(t) \in \mathbb{F}_p[t, t^{-1}] \) be a univariate Laurent polynomial, and define the sequence \( A_p(n) = \ct{P(t)^n} \bmod p \). Let \( \kappa(P, p) \in \mathbb{N} \) denote the number of states in a minimal deterministic finite automaton that computes \( A_p(n) \) from the base-\( p \) representation of \( n \). Then, if the sequence \( A_p(n) \) ever takes the value \( 0 \), there exists some index \( n_0 < p^{\kappa(P, p)} \) such that \( A_p(n_0) = 0 \).
+	\end{proposition}
+	
+	
+	\begin{proof}
+		By Christol’s theorem, any sequence over \( \mathbb{F}_p \) with an algebraic generating function is \( p \)-automatic. Since the generating function of \( A_p(n) = \ct{P^n} \mod p \) is rational, it is algebraic over \( \mathbb{F}_p(z) \), and thus \( p \)-automatic. Therefore, \( A_p(n) \) is computed by a deterministic finite automaton over base-\( p \) with \( \kappa(P, p) \) states. Any such automaton reaches all output states using inputs \( n < p^{\kappa(P,p)} \). Hence, if a 0 appears in the sequence, it must occur at some \( n_0 < p^{\kappa(P,p)} \).
+	\end{proof}
+	
+	
+	
+	\medskip
+	
+	\noindent
+	\textbf{Remark.} In practice, the state set \( \kappa(P, p) \) can be computed explicitly using the \texttt{LinRep} module implemented by Nadav Kohen in his \texttt{ConstantTermSequences} Sage library \cite{kohen}. This leads to a provably valid and dramatically tighter bound than the general worst-case estimate \( p^{p^{(2\deg(P) - 1)}} \).
+	
+
+	\section{Discussion}
+	
+	The results presented here show that the conjectured bound \( B_{P,p} = p^{\deg(P)} \) for the first zero of constant term sequences does not universally hold. While the bound was supported by prior empirical results and appeared to hold for many low-degree polynomials, our counterexamples demonstrate that it can fail even for univariate Laurent polynomials of degree two.
+	
+	This naturally raises the question: under what conditions does the bound \( p^{\deg(P)} \) hold? Our experiments suggest that symmetry, sparsity of terms, and specific coefficient patterns may play a role in enabling early cancellation in the constant term sequence. Similarly, asymmetry or complex interaction among terms may delay the first zero beyond the conjectured bound.
+	
+	Another interesting direction is a statistical approach to the first zero positions. While our counterexamples show violations, they are relatively rare among randomly sampled polynomials. This suggests that the conjecture might hold on average, which could be further explored and formalized through probabilistic modeling.
+	
+	Future work may involve classifying polynomials by structural features and correlating them with the position of their first zero, as well as extending this analysis to multivariate cases or other moduli beyond primes.
+	
+	
+	\section{Conclusion}
+	
+	Through computational experimentation, we have demonstrated that the conjectured bound \( B_{P,p} = p^{\deg(P)} \) does not hold universally, even for univariate Laurent polynomials of small degree. The explicit counterexamples and additional violating cases presented here provide compelling evidence that the bound must be revised or supplemented with additional constraints that capture more nuanced algebraic structure.
+	
+	This work not only contributes new data to the theory of constant term sequences but also serves as a case study in how undergraduate-level computational research can meaningfully challenge existing mathematical conjectures. Future work will seek to understand the deeper algebraic or combinatorial structures responsible for such violations and whether alternative bounds may be proposed.
+	
+
+	\section*{Acknowledgments}
+	I would like to thank Nadav Kohen for introducing me to the subject of his thesis and for his guidance during the semester for this project. It has been an absolute pleasure to learn so much. I'd also like to extend thanks to those who run the Undergraduate Research Lab, LEMMA, at Indiana University, for the opportunity get exposure to mathematical research this early in my academic career.
+	
+\bibliographystyle{plain}
+\bibliography{reference}
+
+	
+\end{document}
